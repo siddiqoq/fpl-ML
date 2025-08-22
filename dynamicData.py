@@ -1,19 +1,10 @@
-from dotenv import load_dotenv
 import os
 import requests
 import psycopg2
-import time
 from psycopg2.extras import execute_values
+from dotenv import load_dotenv
 
-# Stores every gw stat in the player_gameweek_stats for current season and updates season total
-# Run after each gameweek has finished
-
-# .env should look like this
-# user=postgres.eqpijwihquslkstwound
-# password=
-# host=aws-0-us-east-2.pooler.supabase.com
-# port=5432
-# dbname=postgres
+CURRENT_SEASON = "2024/25"
 
 
 # --- Load env variables ---
@@ -38,48 +29,106 @@ conn = psycopg2.connect(
 cur = conn.cursor()
 print("Connection successful!")
 
-# STORE STATS FOR EACH PLAYER IN THE CURRENT GW
-for gw in range(1, 39):  # FPL usually has 38 GWs
+# --- Preload bootstrap data for market stats ---
+print("Fetching bootstrap-static for market stats...")
+bootstrap = requests.get("https://fantasy.premierleague.com/api/bootstrap-static/").json()
+players_market = {
+    p["id"]: {
+        "now_cost": p["now_cost"],
+        "selected_by_percent": p["selected_by_percent"],
+        "transfers_in_event": p["transfers_in_event"],
+        "transfers_out_event": p["transfers_out_event"],
+    }
+    for p in bootstrap["elements"]
+}
+print(f"Loaded {len(players_market)} players market data.")
+
+
+for gw in range(1, 39):  # max 38 GWs
     print(f"\n📦 Fetching data for GW {gw}...")
     url = f"https://fantasy.premierleague.com/api/event/{gw}/live/"
     res = requests.get(url)
-
-    if res.status_code != 200:
-        print(f"⚠️ GW {gw} not available yet. Skipping.")
-        continue
-
     data = res.json()
-    print(data)
-    player_stats = []
 
+    if "elements" not in data or len(data["elements"]) == 0:
+        print(f"⚠️ GW {gw} not available yet.")
+        break
+
+    player_stats = []
     for details in data["elements"]:
         player_id = details["id"]
         stats = details["stats"]
 
-        print(player_id)
-        print('test')
+        # merge match stats + market stats
+        market = players_market.get(player_id, {})
         player_stats.append((
-            int(player_id), gw,
+            int(player_id),CURRENT_SEASON, gw,
             stats["minutes"], stats["goals_scored"], stats["assists"],
             stats["clean_sheets"], stats["goals_conceded"], stats["own_goals"],
             stats["penalties_saved"], stats["penalties_missed"], stats["yellow_cards"],
             stats["red_cards"], stats["saves"], stats["bonus"], stats["bps"],
             stats["influence"], stats["creativity"], stats["threat"], stats["ict_index"],
-            stats["total_points"], stats["value"], stats["selected_by_percent"],
-            stats["transfers_in"], stats["transfers_out"]
+            stats["total_points"],
+            market.get("now_cost"),
+            market.get("selected_by_percent"),
+            market.get("transfers_in_event"),
+            market.get("transfers_out_event")
         ))
 
-    # Insert into DB
-    cur.executemany("""
+
+    def ensure_columns(cur, table, expected_cols):
+        for col, dtype in expected_cols.items():
+            cur.execute("""
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name = %s AND column_name = %s
+            """, (table, col))
+
+            if cur.fetchone() is None:
+                print(f"⚠️ Adding missing column: {col} {dtype}")
+                cur.execute(f"ALTER TABLE {table} ADD COLUMN {col} {dtype};")
+
+
+    expected_columns = {
+        "player_id": "INT",
+        "season": "TEXT",
+        "gameweek": "INT",
+        "minutes": "INT",
+        "total_points": "INT",
+        "goals_scored": "INT",
+        "assists": "INT",
+        "clean_sheets": "INT",
+        "goals_conceded": "INT",
+        "own_goals": "INT",
+        "penalties_saved": "INT",
+        "penalties_missed": "INT",
+        "yellow_cards": "INT",
+        "red_cards": "INT",
+        "saves": "INT",
+        "bonus": "INT",
+        "bps": "INT",
+        "influence": "NUMERIC",
+        "creativity": "NUMERIC",
+        "threat": "NUMERIC",
+        "ict_index": "NUMERIC",
+        "now_cost": "INT",
+        "selected_by_percent": "NUMERIC",
+        "transfers_in": "INT",
+        "transfers_out": "INT"
+    }
+    ensure_columns(cur,'player_gameweek_stats', expected_columns)
+    print(f"Inserting {len(player_stats)} rows for GW {gw}...")
+
+    execute_values(cur, """
         INSERT INTO player_gameweek_stats (
-            player_id, gameweek, minutes, goals_scored, assists, clean_sheets,
-            goals_conceded, own_goals, penalties_saved, penalties_missed,
-            yellow_cards, red_cards, saves, bonus, bps,
-            influence, creativity, threat, ict_index,
-            total_points, value, selected_by_percent, transfers_in, transfers_out
+            player_id, season, gameweek, minutes, goals_scored, assists,
+            clean_sheets, goals_conceded, own_goals, penalties_saved,
+            penalties_missed, yellow_cards, red_cards, saves, bonus, bps,
+            influence, creativity, threat, ict_index, total_points,
+            now_cost, selected_by_percent, transfers_in, transfers_out
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (player_id, gameweek) DO UPDATE SET
+        VALUES %s
+        ON CONFLICT (player_id, season, gameweek) DO UPDATE SET
             minutes = EXCLUDED.minutes,
             goals_scored = EXCLUDED.goals_scored,
             assists = EXCLUDED.assists,
@@ -98,60 +147,15 @@ for gw in range(1, 39):  # FPL usually has 38 GWs
             threat = EXCLUDED.threat,
             ict_index = EXCLUDED.ict_index,
             total_points = EXCLUDED.total_points,
-            value = EXCLUDED.value,
+            now_cost = EXCLUDED.now_cost,
             selected_by_percent = EXCLUDED.selected_by_percent,
             transfers_in = EXCLUDED.transfers_in,
             transfers_out = EXCLUDED.transfers_out;
     """, player_stats)
 
     conn.commit()
-    print(f"✅ GW {gw} data inserted/updated successfully.")
-    time.sleep(1)  # Avoid hammering the API
+    print(f"✅ GW {gw} stats inserted/updated.")
 
-# --- Aggregate into player_season_totals ---
-print("📊 Aggregating season totals...")
-cur.execute("""
-    SELECT 
-        player_id,
-        season,
-        SUM(minutes) AS minutes,
-        SUM(total_points) AS total_points,
-        SUM(goals_scored) AS goals_scored,
-        SUM(assists) AS assists,
-        SUM(clean_sheets) AS clean_sheets,
-        SUM(goals_conceded) AS goals_conceded,
-        SUM(saves) AS saves,
-        SUM(yellow_cards) AS yellow_cards,
-        SUM(red_cards) AS red_cards
-    FROM player_gameweek_stats
-    GROUP BY player_id, season
-""")
-totals = cur.fetchall()
-
-insert_query = """
-INSERT INTO player_season_totals (
-    player_id, season, minutes, total_points, goals_scored,
-    assists, clean_sheets, goals_conceded, saves,
-    yellow_cards, red_cards
-)
-VALUES %s
-ON CONFLICT (player_id, season) DO UPDATE SET
-    minutes = EXCLUDED.minutes,
-    total_points = EXCLUDED.total_points,
-    goals_scored = EXCLUDED.goals_scored,
-    assists = EXCLUDED.assists,
-    clean_sheets = EXCLUDED.clean_sheets,
-    goals_conceded = EXCLUDED.goals_conceded,
-    saves = EXCLUDED.saves,
-    yellow_cards = EXCLUDED.yellow_cards,
-    red_cards = EXCLUDED.red_cards;
-"""
-
-execute_values(cur, insert_query, totals)
-print(f"✅ Updated {len(totals)} season total records.")
-
-# --- Commit and close ---
-conn.commit()
 cur.close()
 conn.close()
-print("🏁 Dynamic data + season totals update complete.")
+print("\nAll available gameweeks processed!")
