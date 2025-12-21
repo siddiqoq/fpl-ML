@@ -13,21 +13,10 @@ from datetime import (datetime)
 # port=5432
 # dbname=postgres
 
-# This script runs static data, you only need to run it once unless there are player transfers /  fixture delays
+# This script runs static data, you only need to run it once unless there are player transfers / fixture delays
 
-
-# FPL's official archive only stores data from 2016/17 onwards
-# Season IDs = start year of the season
-SEASONS = [
-    (2016, "2016/17"),
-    (2017, "2017/18"),
-    (2018, "2018/19"),
-    (2019, "2019/20"),
-    (2020, "2020/21"),
-    (2021, "2021/22"),
-    (2022, "2022/23"),
-    (2023, "2023/24"),
-]
+# FPL's official archive only stores data from 2016/17 onwards and
+# past seasons only have end of season total data
 
 # --- Load env variables ---
 load_dotenv()
@@ -51,14 +40,14 @@ conn = psycopg2.connect(
 cur = conn.cursor()
 print("Connection successful!")
 
-# --- Fetch FPL bootstrap data ---
+#Fetch FPL bootstrap data
 url = "https://fantasy.premierleague.com/api/bootstrap-static/"
-print(f"Fetching data from {url}...")
+print(f"Fetching data from {url}")
 data = requests.get(url).json()
 print("Data fetched successfully.")
 
-# --- Positions ---
-print("Preparing positions data...")
+#Positions
+print("Preparing positions data")
 positions_data = [
     (p["id"], p["singular_name"], p["plural_name"])
     for p in data["element_types"]
@@ -105,18 +94,18 @@ print("Teams inserted/updated.")
 
 # Fixtures
 url = "https://fantasy.premierleague.com/api/fixtures/"
-print(f"📥 Fetching fixtures from {url} ...")
+print(f" Fetching fixtures from {url} ...")
 fixtures = requests.get(url).json()
-print(f"📦 Total fixtures fetched: {len(fixtures)}")
+print(f" Total fixtures fetched: {len(fixtures)}")
 
 today = datetime.today()
 if today.month >= 8:  # New season starts in August
     current_season = f"{today.year}/{str(today.year+1)[-2:]}"
 else:
     current_season = f"{today.year-1}/{str(today.year)[-2:]}"
-print(f"🏟 Current season: {current_season}")
+print(f" Current season: {current_season}")
 
-# --- Prepare data ---
+# Prepare fixture data
 fixtures_data = []
 for f in fixtures:
     fixtures_data.append((
@@ -131,9 +120,9 @@ for f in fixtures:
         f.get("finished", False)
     ))
 
-print(f"📝 Rows prepared: {len(fixtures_data)}")
+print(f" Rows prepared: {len(fixtures_data)}")
 
-# --- Insert/update fixtures ---
+# Insert/update fixtures
 execute_values(cur, """
     INSERT INTO fixtures (
         fixture_id, season, gameweek, kickoff_time,
@@ -152,11 +141,11 @@ execute_values(cur, """
 """, fixtures_data)
 
 
-# --- Players + Season Totals ---
+# Players + Season Totals
 players_data = []
 season_totals_data = []
 
-print("📥 Fetching player season totals (per-player requests)...")
+print(" Fetching player season totals (per-player requests)...")
 for idx, p in enumerate(data["elements"], start=1):
     players_data.append((
         p["id"], p["first_name"], p["second_name"], p["web_name"],
@@ -183,7 +172,7 @@ for idx, p in enumerate(data["elements"], start=1):
                 season_stat.get("red_cards", 0)
             ))
     else:
-        print(f"⚠️ Failed to fetch history for player {p['id']}")
+        print(f"️ Failed to fetch history for player {p['id']}")
 
     if idx % 50 == 0:
         print(f"   Processed {idx}/{len(data['elements'])} players...")
@@ -201,7 +190,7 @@ execute_values(cur, """
         team_id = EXCLUDED.team_id,
         code = EXCLUDED.code;
 """, players_data)
-print(f"💾 Players inserted/updated: {len(players_data)}")
+print(f" Players inserted/updated: {len(players_data)}")
 
 # Insert season totals
 if season_totals_data:
@@ -222,10 +211,9 @@ if season_totals_data:
             yellow_cards = EXCLUDED.yellow_cards,
             red_cards = EXCLUDED.red_cards;
     """, season_totals_data)
-print(f"💾 Player season totals inserted/updated: {len(season_totals_data)}")
+print(f" Player season totals inserted/updated: {len(season_totals_data)}")
 
-# --- Commit and close ---
 conn.commit()
 cur.close()
 conn.close()
-print("✅ Static + season totals data loaded successfully!")
+print(" Static + season totals data loaded successfully!")

@@ -1,13 +1,19 @@
 import os
+from datetime import datetime
+
 import requests
 import psycopg2
 from psycopg2.extras import execute_values
 from dotenv import load_dotenv
 
-CURRENT_SEASON = "2024/25"
+today = datetime.today()
+if today.month >= 8:  # New season starts in August
+    current_season = f"{today.year}/{str(today.year+1)[-2:]}"
+else:
+    current_season = f"{today.year-1}/{str(today.year)[-2:]}"
+print(f" Current season: {current_season}")
 
 
-# --- Load env variables ---
 load_dotenv()
 USER = os.getenv("user")
 PASSWORD = os.getenv("password")
@@ -15,9 +21,8 @@ HOST = os.getenv("host")
 PORT = os.getenv("port")
 DBNAME = os.getenv("dbname")
 
-print(f"Connecting to {HOST}:{PORT}/{DBNAME} as {USER}...")
+print(f"Connecting to {HOST}:{PORT}/{DBNAME} as {USER}")
 
-# --- Connect to Supabase Postgres ---
 conn = psycopg2.connect(
     user=USER,
     password=PASSWORD,
@@ -27,10 +32,10 @@ conn = psycopg2.connect(
     sslmode="require"
 )
 cur = conn.cursor()
-print("Connection successful!")
+print("Connection successful")
 
-# --- Preload bootstrap data for market stats ---
-print("Fetching bootstrap-static for market stats...")
+# Preload bootstrap data for market data
+print("Fetching bootstrap-static for market data")
 bootstrap = requests.get("https://fantasy.premierleague.com/api/bootstrap-static/").json()
 players_market = {
     p["id"]: {
@@ -51,7 +56,7 @@ for gw in range(1, 39):  # max 38 GWs
     data = res.json()
 
     if "elements" not in data or len(data["elements"]) == 0:
-        print(f"⚠️ GW {gw} not available yet.")
+        print(f" GW {gw} not available yet.")
         break
 
     player_stats = []
@@ -62,7 +67,7 @@ for gw in range(1, 39):  # max 38 GWs
         # merge match stats + market stats
         market = players_market.get(player_id, {})
         player_stats.append((
-            int(player_id),CURRENT_SEASON, gw,
+            int(player_id),current_season, gw,
             stats["minutes"], stats["goals_scored"], stats["assists"],
             stats["clean_sheets"], stats["goals_conceded"], stats["own_goals"],
             stats["penalties_saved"], stats["penalties_missed"], stats["yellow_cards"],
@@ -85,7 +90,7 @@ for gw in range(1, 39):  # max 38 GWs
             """, (table, col))
 
             if cur.fetchone() is None:
-                print(f"⚠️ Adding missing column: {col} {dtype}")
+                print(f"Adding missing column: {col} {dtype}")
                 cur.execute(f"ALTER TABLE {table} ADD COLUMN {col} {dtype};")
 
 
@@ -117,8 +122,8 @@ for gw in range(1, 39):  # max 38 GWs
         "transfers_out": "INT"
     }
     ensure_columns(cur,'player_gameweek_stats', expected_columns)
-    print(f"Inserting {len(player_stats)} rows for GW {gw}...")
 
+    print(f"Inserting {len(player_stats)} rows for GW {gw}")
     execute_values(cur, """
         INSERT INTO player_gameweek_stats (
             player_id, season, gameweek, minutes, goals_scored, assists,
@@ -154,7 +159,7 @@ for gw in range(1, 39):  # max 38 GWs
     """, player_stats)
 
     conn.commit()
-    print(f"✅ GW {gw} stats inserted/updated.")
+    print(f"GW {gw} stats inserted/updated.")
 
 cur.close()
 conn.close()

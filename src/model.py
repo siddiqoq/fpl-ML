@@ -1,10 +1,14 @@
+import os.path
+
 import pandas as pd
-from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error
+from path import PROCESSED_DATA_DIR, MODELS_DIR
 import joblib
 
-df = pd.read_csv("data/processed/ml_features_dataset.csv")
+INPUT_PATH = os.path.join(PROCESSED_DATA_DIR, 'ml_features_dataset.csv')
+MODEL_PATH = os.path.join(MODELS_DIR, 'rf_model.pkl')
+df = pd.read_csv(INPUT_PATH)
 
 X = df[["points_last_gw", "points_last_3_gws"]]
 y = df["total_points"]
@@ -23,5 +27,6 @@ y_pred = model.predict(X_test)
 mae = mean_absolute_error(y_test, y_pred)
 print("MAE on test set:", mae)
 
-joblib.dump(model, "models/rf_model.pkl")
+
+joblib.dump(model, MODEL_PATH)
 print("Model saved")
