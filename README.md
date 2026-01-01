@@ -69,16 +69,17 @@ pip install -r requirements.txt
 ### 5. Create .env file in project root
 
 ```
-DB_USER=postgres
-DB_PASSWORD=your_password
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=fpl
-DB_SSLMODE=disable #enable if using Supabase
+# Sample .env file
+user=your_postgres_user      # e.g. postgres or fpl_user
+password=your_password       # leave empty if no password locally
+host=localhost               # or your Supabase host
+port=5432
+name=fpl                     # the database where FPL tables will live
+DB_SSLMODE=disable           # use 'require' if connecting to Supabase
 ```
 
 ### 6. Run run_pipeline.py
 
 ```
-python run_pieline.py
+python run_pipeline.py
 ```
