@@ -5,6 +5,8 @@ import psycopg2
 from psycopg2.extras import execute_values
 import time
 from datetime import (datetime)
+from pathlib import Path
+from dotenv import load_dotenv
 
 # .env should look like this
 # user=postgres.eqpijwihquslkstwound
@@ -18,13 +20,16 @@ from datetime import (datetime)
 # FPL's official archive only stores data from 2016/17 onwards and
 # past seasons only have end of season total data
 
-# --- Load env variables ---
-load_dotenv()
+env_path = Path(__file__).resolve().parents[2] / ".env"
+load_dotenv(env_path)
+print("Looking for .env at:", env_path)
+print("Exists?", env_path.exists())
+
 USER = os.getenv("user")
 PASSWORD = os.getenv("password")
 HOST = os.getenv("host")
 PORT = os.getenv("port")
-DBNAME = os.getenv("dbname")
+DBNAME = os.getenv("name")
 
 print(f"Connecting to {HOST}:{PORT}/{DBNAME} as {USER}...")
 
@@ -35,7 +40,7 @@ conn = psycopg2.connect(
     host=HOST,
     port=PORT,
     dbname=DBNAME,
-    sslmode="require"
+    sslmode=os.getenv("DB_SSLMODE", "disable")
 )
 cur = conn.cursor()
 print("Connection successful!")
@@ -48,6 +53,12 @@ print("Data fetched successfully.")
 
 #Positions
 print("Preparing positions data")
+
+cur.execute("""CREATE TABLE IF NOT EXISTS positions (
+    element_type INT PRIMARY KEY,
+    singular_name TEXT NOT NULL,
+    plural_name TEXT NOT NULL
+);""")
 positions_data = [
     (p["id"], p["singular_name"], p["plural_name"])
     for p in data["element_types"]
@@ -65,6 +76,17 @@ print("Positions inserted/updated.")
 
 # --- Teams ---
 print("Preparing teams data...")
+cur.execute("""CREATE TABLE IF NOT EXISTS teams (
+    team_id INT PRIMARY KEY,
+    name TEXT NOT NULL,
+    short_name TEXT NOT NULL,
+    strength_overall_home INT,
+    strength_overall_away INT,
+    strength_attack_home INT,
+    strength_attack_away INT,
+    strength_defence_home INT,
+    strength_defence_away INT
+);""")
 teams_data = [
     (
         t["id"], t["name"], t["short_name"],
@@ -106,6 +128,17 @@ else:
 print(f" Current season: {current_season}")
 
 # Prepare fixture data
+cur.execute("""CREATE TABLE IF NOT EXISTS fixtures (
+    fixture_id INT PRIMARY KEY,
+    season TEXT NOT NULL,
+    gameweek INT,
+    kickoff_time TIMESTAMP,
+    team_h INT REFERENCES teams(team_id),
+    team_a INT REFERENCES teams(team_id),
+    team_h_score INT,
+    team_a_score INT,
+    finished BOOLEAN DEFAULT FALSE
+);""")
 fixtures_data = []
 for f in fixtures:
     fixtures_data.append((
@@ -178,6 +211,15 @@ for idx, p in enumerate(data["elements"], start=1):
         print(f"   Processed {idx}/{len(data['elements'])} players...")
     time.sleep(0.2)  # Be nice to FPL API
 
+cur.execute("""CREATE TABLE IF NOT EXISTS players (
+    player_id INT PRIMARY KEY,
+    first_name TEXT NOT NULL,
+    second_name TEXT NOT NULL,
+    web_name TEXT NOT NULL,
+    element_type INT REFERENCES positions(element_type),
+    team_id INT REFERENCES teams(team_id),
+    code INT
+);""")
 # Insert players
 execute_values(cur, """
     INSERT INTO players (player_id, first_name, second_name, web_name, element_type, team_id, code)
@@ -193,6 +235,21 @@ execute_values(cur, """
 print(f" Players inserted/updated: {len(players_data)}")
 
 # Insert season totals
+cur.execute("""CREATE TABLE IF NOT EXISTS player_season_totals (
+    player_id INT REFERENCES players(player_id),
+    season TEXT NOT NULL,
+    minutes INT DEFAULT 0,
+    total_points INT DEFAULT 0,
+    goals_scored INT DEFAULT 0,
+    assists INT DEFAULT 0,
+    clean_sheets INT DEFAULT 0,
+    goals_conceded INT DEFAULT 0,
+    saves INT DEFAULT 0,
+    yellow_cards INT DEFAULT 0,
+    red_cards INT DEFAULT 0,
+    PRIMARY KEY (player_id, season)
+);""")
+
 if season_totals_data:
     execute_values(cur, """
         INSERT INTO player_season_totals (
@@ -212,6 +269,35 @@ if season_totals_data:
             red_cards = EXCLUDED.red_cards;
     """, season_totals_data)
 print(f" Player season totals inserted/updated: {len(season_totals_data)}")
+
+cur.execute("""CREATE TABLE IF NOT EXISTS player_gameweek_stats (
+    player_id INT REFERENCES players(player_id),
+    season TEXT NOT NULL,
+    gameweek INT NOT NULL,
+    minutes INT DEFAULT 0,
+    goals_scored INT DEFAULT 0,
+    assists INT DEFAULT 0,
+    clean_sheets INT DEFAULT 0,
+    goals_conceded INT DEFAULT 0,
+    own_goals INT DEFAULT 0,
+    penalties_saved INT DEFAULT 0,
+    penalties_missed INT DEFAULT 0,
+    yellow_cards INT DEFAULT 0,
+    red_cards INT DEFAULT 0,
+    saves INT DEFAULT 0,
+    bonus INT DEFAULT 0,
+    bps INT DEFAULT 0,
+    influence NUMERIC DEFAULT 0,
+    creativity NUMERIC DEFAULT 0,
+    threat NUMERIC DEFAULT 0,
+    ict_index NUMERIC DEFAULT 0,
+    total_points INT DEFAULT 0,
+    now_cost INT DEFAULT 0,
+    selected_by_percent NUMERIC DEFAULT 0,
+    transfers_in INT DEFAULT 0,
+    transfers_out INT DEFAULT 0,
+    PRIMARY KEY (player_id, season, gameweek)
+);""")
 
 conn.commit()
 cur.close()

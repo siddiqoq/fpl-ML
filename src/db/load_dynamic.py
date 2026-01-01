@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-
+from pathlib import Path
 import requests
 import psycopg2
 from psycopg2.extras import execute_values
@@ -14,12 +14,15 @@ else:
 print(f" Current season: {current_season}")
 
 
-load_dotenv()
+
+
+env_path = Path(__file__).resolve().parents[2] / ".env"
+load_dotenv(env_path)
 USER = os.getenv("user")
 PASSWORD = os.getenv("password")
 HOST = os.getenv("host")
 PORT = os.getenv("port")
-DBNAME = os.getenv("dbname")
+DBNAME = os.getenv("name")
 
 print(f"Connecting to {HOST}:{PORT}/{DBNAME} as {USER}")
 
@@ -29,8 +32,7 @@ conn = psycopg2.connect(
     host=HOST,
     port=PORT,
     dbname=DBNAME,
-    sslmode="require"
-)
+    sslmode=os.getenv("DB_SSLMODE", "disable"))
 cur = conn.cursor()
 print("Connection successful")
 
@@ -160,6 +162,8 @@ for gw in range(1, 39):  # max 38 GWs
 
     conn.commit()
     print(f"GW {gw} stats inserted/updated.")
+
+
 
 cur.close()
 conn.close()
