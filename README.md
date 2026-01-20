@@ -39,7 +39,7 @@ The project uses PostgreSQL for data storage. Supabase is recommended but any Po
 - Predict team win/loss probability
 - Improved performance (lower runtime)
 - Web-based dashboard
-
+- Comparison between model predictions and actual outcome for past weeks
 
 ## How to Run
 ### 1. Prerequisites
