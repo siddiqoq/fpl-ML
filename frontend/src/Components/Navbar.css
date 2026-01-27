@@ -1,0 +1,45 @@
+.navbar {
+  background: #2A7B9B;
+  background: linear-gradient(90deg, rgba(42, 123, 155, 1) 0%, rgba(87, 199, 133, 1) 0%, rgba(237, 221, 83, 1) 100%);
+  width: 100%;
+  
+}
+
+.nav-header {
+  display: flex;
+  align-items: center;
+}
+
+.list-button {
+  font-size: 24px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  color: white;
+  margin-right: 15px;
+}
+
+.page-title h1 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.menu-list {
+  list-style: none;
+  padding: 10px 0 0 0;
+  margin: 0;
+}
+
+.menu-list li {
+  padding: 8px 0;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.menu-list li:hover {
+  background-color: #444;
+}
+
+.menu-list li {
+    border-top: 1px solid black;
+}
