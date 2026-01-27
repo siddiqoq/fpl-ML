@@ -1,0 +1,230 @@
+.title {
+    color: rgba(0, 0, 0, 0.713);
+}
+.active {
+    background: #2A7B9B;
+    background: linear-gradient(90deg, rgba(42, 123, 155, 1) 0%, rgba(87, 199, 133, 1) 0%, rgba(237, 221, 83, 1) 100%);
+}
+.filter-button {
+    background-color: white;
+    color: black;
+}
+.filter-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    gap: 0.5%;
+    background-color: white;
+    width:fit-content;
+    padding: 1%;
+    border-radius: 8px;
+    margin: 0 auto;
+    
+}
+
+.players-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+/* ===============================
+   CARD
+================================ */
+
+.player-container {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    padding-top: 0;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    width: 30rem;
+    margin: 0 auto;
+}
+
+.player-container::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s ease;
+}
+
+.player-container:hover::before {
+    transform: scaleX(1);
+}
+
+.player-container:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+}
+
+/* ===============================
+   NAME ROW
+================================ */
+
+.name-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.player-name {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.card-rank {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #cbd5e1;
+}
+
+/* ===============================
+   META
+================================ */
+
+.player-meta {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.team {
+    color: #667eea;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.position {
+    background: #f1f5f9;
+    color: #64748b;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+/* ===============================
+   STATS ROW
+================================ */
+
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    text-align: center;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 1.25rem;
+}
+
+.stat-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* same styling as predicted pts */
+/* same styling as predicted pts */
+/* same styling as predicted pts */
+/* same styling as predicted pts */
+
+
+.points-value {
+    font-size: 2.3rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    line-height: 1;
+}
+
+.points-label {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    margin-top: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+
+
+/*
+.players-list{
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+
+}
+
+.player-container {
+    display: flex;
+    flex-direction: column;
+    width: 50%;
+    margin: 0 auto;
+    border-radius: 8px;
+    background-color: #9191917b;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+
+}
+
+.name-ranking {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    margin: 0% 5% 0 5%;
+    font-size: larger;
+
+}
+
+.team-pos {
+    display: flex;
+    flex-direction: row;
+    margin-left: 5%;
+    gap: 5%;
+    margin-top: -5%;
+}
+
+.stat-container {
+    width: 90%;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    gap: 10%;
+    border: 1pt solid white;
+    margin: 0 auto;
+    margin-bottom: 5%;
+}
+.predicted {
+    margin-left: -10%;
+}
+.number {
+    font-size: 20pt;
+}
+.label {
+    margin-top: -10%;
+    color: green;
+}
+.form {
+    margin-top: -1%;
+}
+.pos {
+    border-radius: 8px;
+    border: 1pt solid white;
+    background-color: rgba(255, 255, 255, 0.862);
+    color: rgb(118, 118, 118);
+    padding-left: 2%;
+    padding-right: 2%;
+}
+

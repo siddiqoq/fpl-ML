@@ -1,0 +1,27 @@
+html, body {
+  margin:0 ;
+  padding: 0;
+  width: 100%;
+  display: block;
+  min-height: 100%;
+  background-color: rgb(237, 237, 237);
+
+}
+#root {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 0;
+  text-align: center;
+  background-color: rgb(237, 237, 237);
+}
+
+.page-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100vw;
+  height: 100%;
+  background-color: rgb(237, 237, 237);
+
+}
