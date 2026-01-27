@@ -1,5 +1,6 @@
 import NavBar from './Components/Navbar'
 import './App.css'
+import MainBody from './Components/Body'
 
 function App() {
 
@@ -7,6 +8,7 @@ function App() {
     <>
       <div className='page-layout'>
         <NavBar/>
+        <MainBody/>
       </div>
     </>
   )

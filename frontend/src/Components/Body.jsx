@@ -16,7 +16,8 @@ function MainBody (){
     return (
         <div className = 'body'>
             <h1 className='title'>Top 10 Predicted Scorers</h1>
-            {PositionFilter}
+            <PositionFilter/>
+            <br />
 
             <div className="players-list">
                 {topPlayers.map(player => (
@@ -39,42 +40,64 @@ function PositionFilter() {
     )
 }
 
-function PlayerInfo({player}) {
+function PlayerInfo({ player }) {
     return (
-        <div className='player-container'>
-            <div className='name-ranking'>
-                <h3>{player.name}</h3>
-                <h3>{player.ranking}</h3>
+        <div className="player-container">
+
+            {/* name + ranking row */}
+            <div className="name-row">
+                <h3 className="player-name">{player.name}</h3>
+                <span className="card-rank">#{player.ranking}</span>
             </div>
 
-            <div className='team-pos'>
-                <h4>{player.team}</h4>
-                <h4>{player.pos}</h4>
+            {/* team + position */}
+            <div className="player-meta">
+                <span className="team">{player.team}</span>
+                <span className="position">{player.pos}</span>
             </div>
 
-            <div className='stat-container'>
-                <div className='stat'>
-                    <p>{player.predicted}</p>
-                    <p>predicted points</p>
+            {/* stats row */}
+            <div className="stats-row">
+
+                <div className="stat-box">
+                    <span className="points-value">
+                        {player.predicted}
+                    </span>
+                    <span className="points-label">
+                        predicted pts
+                    </span>
                 </div>
-                <div className='stat'>
-                    <p>{player.last_gw_points}</p>
-                    <p>previous gw points</p>
+
+                <div className="stat-box">
+                    <span className="points-value">
+                        {player.last_gw_points}
+                    </span>
+                    <span className="points-label">
+                        last gw
+                    </span>
                 </div>
-                <div className='stat'>
-                    <p>{player.form}</p>
-                    <p>form</p>
+
+                <div className="stat-box">
+                    <span className="points-value">
+                        {player.form}
+                    </span>
+                    <span className="points-label">
+                        form
+                    </span>
                 </div>
+
             </div>
         </div>
-    )
+    );
 }
+
+
 
 function GetPlayerByPosition(players,position){
     if (position==='All'){
         return players
     }
-    
+
     return players.filter(player => player.pos === position);
 
 }
