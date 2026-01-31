@@ -11,6 +11,7 @@ app = FastAPI()
 
 origins = ["http://localhost:5173",
            "localhost:5173"]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -28,31 +29,25 @@ model = joblib.load(MODEL_PATH)
 df = pd.read_csv(FEATURE_DS)
 
 @app.get("/")
-def top_10(position:str = "ALL"):
-    positionDictionary = {
-        'GK': 1,
-        'DEF' : 2,
-        'MID' : 3,
-        'ATT' : 4
-    }
+def top_10(position:int = 0):
     lastGW = df["gameweek"].max()
     predictedGW = lastGW + 1
 
     latest_player_gw = df.groupby("player_id").tail(1).reset_index(drop=True)
     X_next = latest_player_gw[["points_last_gw","points_last_3_gws"]]
 
-    if position != "ALL": # filter by position before running model
-        latest_player_gw = latest_player_gw[latest_player_gw["element_type"] == positionDictionary[position]]
-    latest_player_gw[f"predicted_points_gw{predictedGW}"] = model.predict(X_next)
+    if position != 0: # filter by position before running model
+        latest_player_gw = latest_player_gw[latest_player_gw["element_type"] == position]
+    latest_player_gw[f"predicted_points"] = model.predict(X_next)
 
 
 
 
 
-    predicted_values = (latest_player_gw[["player_id","web_name","short_name","now_cost",f"predicted_points_gw{predictedGW}"]]
-                        .sort_values(f"predicted_points_gw{predictedGW}",ascending=False)).reset_index(drop=True)
+    predicted_values = (latest_player_gw[["player_id","web_name","short_name","now_cost",f"predicted_points","points_last_gw","ict_index","element_type"]]
+                        .sort_values(f"predicted_points",ascending=False)).reset_index(drop=True)
 
-    return predicted_values.head(10).to_dict(orient='index')
+    return predicted_values.head(10).to_dict(orient='records')
 
 if __name__ == "__main__":
     uvicorn.run("app.api:app", host="0.0.0.0", port=8000, reload=True)
