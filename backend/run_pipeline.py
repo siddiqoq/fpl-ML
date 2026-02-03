@@ -2,7 +2,7 @@ import subprocess
 import sys
 
 scripts = [
-    # "src/db/load_static.py",
+    "src/db/load_static.py",
     "src/db/load_dynamic.py",
     "src/fetch_data.py",
     "src/feature_engineering.py",
