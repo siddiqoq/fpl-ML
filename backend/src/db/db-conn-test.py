@@ -10,7 +10,7 @@ USER = os.getenv("user")
 PASSWORD = os.getenv("password")
 HOST = os.getenv("host")
 PORT = os.getenv("port")
-DBNAME = os.getenv("dbname")
+DBNAME = os.getenv("name")
 
 # Connect to the database
 try:
@@ -19,7 +19,8 @@ try:
         password=PASSWORD,
         host=HOST,
         port=PORT,
-        dbname=DBNAME
+        dbname=DBNAME,
+        sslmode=os.getenv("DB_SSLMODE", "disable")
     )
     print("Connection successful!")
 

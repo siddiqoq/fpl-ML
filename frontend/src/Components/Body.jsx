@@ -7,23 +7,30 @@ function MainBody() {
   const [activeId, setActiveId] = useState(0);
   const [players, setPlayers] = useState([]);
 
+  const [error, setError] = useState(null);
+
   useEffect(() => {
-    fetchPlayers();
-  }, [activeId]);
-
-  const fetchPlayers = async () => {
-    try {
-      const response = await api.get("/", {
-        params: {
-          position: activeId
+    // ignore responses from a filter the user has already clicked away from
+    let cancelled = false;
+    const fetchPlayers = async () => {
+      try {
+        const response = await api.get("/", {
+          params: {
+            position: activeId
+          }
+        });
+        if (!cancelled) {
+          setPlayers(response.data);
+          setError(null);
         }
-      });
-
-      setPlayers(response.data);
-    } catch (error) {
-      console.error("Error fetching players", error);
-    }
-  };
+      } catch (error) {
+        console.error("Error fetching players", error);
+        if (!cancelled) setError("Couldn't load predictions - is the backend running?");
+      }
+    };
+    fetchPlayers();
+    return () => { cancelled = true; };
+  }, [activeId]);
 
   return (
     <div className="body">
@@ -35,6 +42,8 @@ function MainBody() {
       />
 
       <br />
+
+      {error && <p className="error">{error}</p>}
 
       <div className="players-list">
         {players.map((player, index) => (
@@ -55,7 +64,7 @@ function PositionFilter({ activeId, setActiveId }) {
         {id: 1, label: "GK"},
         {id: 2, label: "DEF"},
         {id: 3, label: "MID"},
-        {id: 4, label: "ATT"}
+        {id: 4, label: "FWD"}
     ];
 
     return (
@@ -82,7 +91,7 @@ function PlayerInfo({ player,index}) {
         1: 'GK',
         2: 'DEF',
         3: 'MID',
-        4: 'ATT'
+        4: 'FWD'
     }
     return (
         <div className="player-container">
@@ -125,7 +134,7 @@ function PlayerInfo({ player,index}) {
                         {player["ict_index"]}
                     </span>
                     <span className="points-label">
-                        form
+                        ict index
                     </span>
                 </div>
 

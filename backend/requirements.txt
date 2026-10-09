@@ -1,3 +1,9 @@
-uvicorn
 fastapi
-pydantic
+uvicorn
+pandas
+scikit-learn
+joblib
+requests
+psycopg2-binary
+SQLAlchemy
+python-dotenv
