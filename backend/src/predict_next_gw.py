@@ -3,19 +3,17 @@ import os.path
 import joblib
 import pandas as pd
 from path import MODELS_DIR, PROCESSED_DATA_DIR
+from features import FEATURES, next_gw_features
 
 MODEL_PATH = os.path.join(MODELS_DIR, 'rf_model.pkl')
-FEATURE_DS = os.path.join(PROCESSED_DATA_DIR, "ml_features_dataset.csv")
+DATASET_PATH = os.path.join(PROCESSED_DATA_DIR, "ml_dataset.csv")
 
 model = joblib.load(MODEL_PATH)
-df = pd.read_csv(FEATURE_DS)
+df = pd.read_csv(DATASET_PATH)
 
-lastGW = df["gameweek"].max()
-predictedGW = lastGW + 1
-
-latest_player_gw = df.groupby("player_id").tail(1).reset_index(drop=True)
-X_next = latest_player_gw[["points_last_gw","points_last_3_gws"]]
-latest_player_gw[f"predicted_points_gw{predictedGW}"] = model.predict(X_next)
+latest_player_gw = next_gw_features(df)
+predictedGW = latest_player_gw["gameweek"].max() + 1
+latest_player_gw[f"predicted_points_gw{predictedGW}"] = model.predict(latest_player_gw[FEATURES])
 
 predicted_values = (latest_player_gw[["player_id","web_name","short_name","now_cost",f"predicted_points_gw{predictedGW}"]]
                     .sort_values(f"predicted_points_gw{predictedGW}",ascending=False))

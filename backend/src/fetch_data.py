@@ -2,18 +2,18 @@ import os
 from urllib.parse import quote_plus
 
 import pandas as pd
-import psycopg2
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from path import PROCESSED_DATA_DIR
 
 load_dotenv()
 USER = os.getenv("user")
-PASSWORD = quote_plus(os.getenv("password"))
+PASSWORD = quote_plus(os.getenv("password") or "")
 HOST = os.getenv("host")
 PORT = os.getenv("port")
-DBNAME = os.getenv("dbname")
-engine = create_engine(f'postgresql://{USER}:{PASSWORD}@{HOST}:{PORT}/{DBNAME}')
+DBNAME = os.getenv("name")  # same key as load_static/load_dynamic and .env.example
+engine = create_engine(f'postgresql://{USER}:{PASSWORD}@{HOST}:{PORT}/{DBNAME}',
+                       connect_args={"sslmode": os.getenv("DB_SSLMODE", "disable")})
 
 players = pd.read_sql("SELECT * FROM players ", engine)
 teams = pd.read_sql("SELECT * FROM teams ", engine)

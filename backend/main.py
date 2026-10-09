@@ -1,46 +1,42 @@
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 import os.path
 import joblib
 import pandas as pd
 from src.path import MODELS_DIR, PROCESSED_DATA_DIR
+from src.features import FEATURES, next_gw_features
 
 
 app = FastAPI()
-origins = ["http://localhost:5173",
-           "localhost:5173"]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173","localhost:5173"],
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
 )
 
-memory_db = {}
-
 MODEL_PATH = os.path.join(MODELS_DIR, 'rf_model.pkl')
-FEATURE_DS = os.path.join(PROCESSED_DATA_DIR, "ml_features_dataset.csv")
+DATASET_PATH = os.path.join(PROCESSED_DATA_DIR, "ml_dataset.csv")
 
 model = joblib.load(MODEL_PATH)
-df = pd.read_csv(FEATURE_DS)
+df = pd.read_csv(DATASET_PATH)
 
-latest_player_gw = df.groupby("player_id").tail(1).reset_index(drop=True)
-X_next = latest_player_gw[["points_last_gw", "points_last_3_gws"]]
-latest_player_gw[f"predicted_points"] = model.predict(X_next)
+latest_player_gw = next_gw_features(df)
+latest_player_gw["predicted_points"] = model.predict(latest_player_gw[FEATURES])
 
 @app.get("/")
-def top_10(position:int = 0):
-    copy_of_latest_player_gw = latest_player_gw.copy()
-    if position != 0: # filter by position before running model
-        copy_of_latest_player_gw = copy_of_latest_player_gw[copy_of_latest_player_gw["element_type"] == position]
+def top_10(position: int = Query(0, ge=0, le=4)):
+    players = latest_player_gw
+    if position != 0: # 0 = all positions
+        players = players[players["element_type"] == position]
 
-    predicted_values = (copy_of_latest_player_gw[["player_id","web_name","short_name","now_cost",f"predicted_points","points_last_gw","ict_index","element_type"]]
-                        .sort_values(f"predicted_points",ascending=False)).reset_index(drop=True)
+    predicted_values = (players[["player_id","web_name","short_name","now_cost","predicted_points","points_last_gw","ict_index","element_type"]]
+                        .sort_values("predicted_points",ascending=False)).reset_index(drop=True)
 
     return predicted_values.head(10).to_dict(orient='records')
 
 if __name__ == "__main__":
-    uvicorn.run("app.api:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
