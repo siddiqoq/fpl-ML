@@ -5,14 +5,14 @@
 This project implements an end-to-end machine learning pipeline to predict Fantasy Premier League (FPL) player points using data scraped from the official FPL API. 
 
 The pipeline covers:
-- Automated data ingestion (static + dynamic match data)
+- Season-aware data ingestion: past seasons from vaastav/Fantasy-Premier-League, the live season from the FPL API
 - Feature engineering with time-series constraints
 - Model training and evaluation
 - Next gameweek point prediction
 
 Tech Stack:
 - Python 3
-- PostgreSQL (Supabase)
+- PostgreSQL (local)
 - pandas, NumPy
 - scikit-learn
 - psycopg2
@@ -21,10 +21,7 @@ Tech Stack:
 
 ## Data Source
 
-All data is sourced directly from the official FPL API. Important to note that the official FPL API only gives matchday specific stats for the current running season. For previous seasons (up to 2016/17) only season totals are provided. As a result some features are dependant on whether the season has started or not (points last gameweeks).
-
-The project uses PostgreSQL for data storage. Supabase is recommended but any PostgreSQL-compatible database can be used.
-
+The official FPL API only serves per-gameweek stats for the current season, so past seasons (2016/17 onwards) are loaded from the open [vaastav/Fantasy-Premier-League](https://github.com/vaastav/Fantasy-Premier-League) dataset, and the live season from the FPL API. Both are stored in the same local PostgreSQL schema, keyed by season, with one row per player per fixture (`backend/src/db/schema.sql`).
 
 ## Model
 - RandomForestRegressor
@@ -61,25 +58,27 @@ venv\Scripts\activate      # Windows
 
 ```
 
-### 4. Install dependancies
+### 4. Install dependencies
 ```
-pip install -r requirements.txt
-```
-
-### 5. Create .env file in project root
-
-```
-# Sample .env file
-user=your_postgres_user      # e.g. postgres or fpl_user
-password=your_password       # leave empty if no password locally
-host=localhost               # or your Supabase host
-port=5432
-name=fpl                     # the database where FPL tables will live
-DB_SSLMODE=disable           # use 'require' if connecting to Supabase
+pip install -r backend/requirements.txt
 ```
 
-### 6. Run run_pipeline.py
+### 5. Set up a local PostgreSQL database
+```
+brew install postgresql@18
+brew services start postgresql@18
+createdb fpl
+```
+
+Then copy `backend/.env.example` to `backend/.env` and fill in your user (usually your macOS username).
+
+### 6. Load the data (from `backend/`)
 
 ```
-python run_pipeline.py
+cd backend
+python src/db/init_db.py         # create the tables (add --reset to drop and recreate them)
+python src/db/load_history.py    # one-off: past seasons 2016/17-2025/26 from vaastav (~1 min)
+python run_pipeline.py           # live season, ep_next snapshot, features, model, predictions
 ```
+
+`run_pipeline.py` only fetches gameweeks FPL has marked finished and data-checked, so re-run it after each gameweek. Run `python src/db/snapshot_ep.py` before every deadline to record FPL's own expected points (they can't be recovered afterwards).

@@ -223,3 +223,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml.idea/
+
+# Generated data (rebuild with run_pipeline.py / load_history.py)
+backend/data/raw/
+backend/data/processed/*.csv
