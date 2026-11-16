@@ -7,3 +7,6 @@ requests
 psycopg2-binary
 SQLAlchemy
 python-dotenv
+river
+scipy
+matplotlib

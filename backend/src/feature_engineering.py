@@ -4,7 +4,7 @@ from features import add_training_features
 import pandas as pd
 
 DATASET_PATH = os.path.join(PROCESSED_DATA_DIR, "ml_dataset.csv")
-df = pd.read_csv(DATASET_PATH)
+df = pd.read_csv(DATASET_PATH, low_memory=False)
 
 # points_last_gw: player's points in the previous GW
 # points_last_3_gws: mean of the player's previous 3 GWs

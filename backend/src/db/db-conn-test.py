@@ -1,41 +1,12 @@
-import psycopg2
-from dotenv import load_dotenv
-import os
+from conn import DBNAME, HOST, PORT, USER, get_conn
 
-# Load environment variables from .env
-load_dotenv()
-
-# Fetch variables
-USER = os.getenv("user")
-PASSWORD = os.getenv("password")
-HOST = os.getenv("host")
-PORT = os.getenv("port")
-DBNAME = os.getenv("name")
-
-# Connect to the database
+# Quick check that backend/.env points at a reachable Postgres
 try:
-    connection = psycopg2.connect(
-        user=USER,
-        password=PASSWORD,
-        host=HOST,
-        port=PORT,
-        dbname=DBNAME,
-        sslmode=os.getenv("DB_SSLMODE", "disable")
-    )
-    print("Connection successful!")
-
-    # Create a cursor to execute SQL queries
+    connection = get_conn()
     cursor = connection.cursor()
-
-    # Example query
     cursor.execute("SELECT NOW();")
-    result = cursor.fetchone()
-    print("Current Time:", result)
-
-    # Close the cursor and connection
+    print(f"Connected to {HOST}:{PORT}/{DBNAME} as {USER}. Server time:", cursor.fetchone()[0])
     cursor.close()
     connection.close()
-    print("Connection closed.")
-
 except Exception as e:
     print(f"Failed to connect: {e}")

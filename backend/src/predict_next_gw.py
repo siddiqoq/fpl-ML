@@ -9,7 +9,7 @@ MODEL_PATH = os.path.join(MODELS_DIR, 'rf_model.pkl')
 DATASET_PATH = os.path.join(PROCESSED_DATA_DIR, "ml_dataset.csv")
 
 model = joblib.load(MODEL_PATH)
-df = pd.read_csv(DATASET_PATH)
+df = pd.read_csv(DATASET_PATH, low_memory=False)
 
 latest_player_gw = next_gw_features(df)
 predictedGW = latest_player_gw["gameweek"].max() + 1
