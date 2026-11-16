@@ -1,0 +1,46 @@
+name: FPL ep snapshot
+
+# FPL overwrites ep_next once a gameweek's deadline passes, so a missed snapshot is lost for good.
+# This takes one several times a day, independent of any local machine, and commits it to
+# backend/data/ep_snapshots/; backend/src/db/load_current.py imports those files into Postgres.
+#
+# Times are UTC. Deadlines are usually 11:00 (weekend) or 18:00-18:30 (Friday/midweek) UK time, so
+# 09:23 and 15:23 land before them in both GMT and BST; 05:23 and 21:23 are backups. GitHub can start
+# scheduled runs late, hence the margin and the odd minute. Runs after a deadline exit without
+# writing anything. Scheduled workflows only run from the default branch (main).
+# GitHub disables schedules after 60 days with no repo activity (e.g. over the summer): re-enable
+# it under Actions before the season starts.
+
+on:
+  schedule:
+    - cron: "23 5,9,15,21 * * *"
+  workflow_dispatch:  # "Run workflow" button, for testing
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ep-snapshot
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install requests psycopg2-binary
+      - run: python backend/src/db/snapshot_ep.py --csv
+      - name: Commit snapshot
+        run: |
+          git add backend/data/ep_snapshots
+          if git diff --cached --quiet; then
+            echo "No snapshot written"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "ep snapshot $(date -u +%Y-%m-%dT%H:%MZ)"
+          git pull --rebase
+          git push
