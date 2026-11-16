@@ -22,6 +22,12 @@ PLAYER_COLUMNS = ["season", "player_id", "code", "first_name", "second_name", "w
 FIXTURE_COLUMNS = ["season", "fixture_id", "gameweek", "kickoff_time", "team_h", "team_a",
                    "team_h_score", "team_a_score", "team_h_difficulty", "team_a_difficulty", "finished"]
 GAMEWEEK_COLUMNS = ["season", "gameweek", "deadline_time", "finished", "data_checked"]
+EP_SNAPSHOT_COLUMNS = ["season", "gameweek", "player_id", "taken_at", "ep_next", "ep_this",
+                       "chance_of_playing_next_round", "status", "now_cost", "selected_by_percent"]
+EP_SNAPSHOT_KEY = ["season", "gameweek", "player_id"]
+# a snapshot only replaces a stored one if it was taken later, so local runs and the GitHub Action
+# can both write without an older snapshot overwriting a newer one
+NEWER_SNAPSHOT = "EXCLUDED.taken_at > ep_snapshots.taken_at"
 
 
 def season_label(year_start):
@@ -44,19 +50,21 @@ def to_rows(df, columns):
     return [tuple(v.item() if hasattr(v, "item") else v for v in row) for row in df.itertuples(index=False)]
 
 
-def upsert(cur, table, columns, rows, key):
+def upsert(cur, table, columns, rows, key, where=None):
+    # where: optional condition an existing row must meet to be overwritten
     if not rows:
         return 0
     updates = ", ".join(f"{c} = EXCLUDED.{c}" for c in columns if c not in key)
     execute_values(cur, f"""
         INSERT INTO {table} ({", ".join(columns)}) VALUES %s
         ON CONFLICT ({", ".join(key)}) DO UPDATE SET {updates}
+        {f"WHERE {where}" if where else ""}
     """, rows, page_size=2000)
     return len(rows)
 
 
-def upsert_df(cur, table, columns, df, key):
-    return upsert(cur, table, columns, to_rows(df, columns), key)
+def upsert_df(cur, table, columns, df, key, where=None):
+    return upsert(cur, table, columns, to_rows(df, columns), key, where)
 
 
 @contextmanager

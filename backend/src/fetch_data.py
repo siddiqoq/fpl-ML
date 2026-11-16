@@ -22,6 +22,7 @@ df = pd.concat([
     by_gw[SUMMED_COLUMNS].sum(min_count=1),
     by_gw[PER_GW_COLUMNS + ["team_id"]].last(),
     by_gw.size().rename("n_fixtures"),
+    by_gw["was_home"].sum().rename("home_fixtures"),  # 0-2: a double GW can be home, away or both
 ], axis=1).reset_index()
 
 df = df.rename(columns={"value": "now_cost"})  # price at that gameweek, x10

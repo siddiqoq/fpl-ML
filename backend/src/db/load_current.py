@@ -1,19 +1,24 @@
 import argparse
 import time
+from pathlib import Path
 
 import pandas as pd
 import requests
 
 from conn import get_conn
-from ingest import (FIXTURE_COLUMNS, FIXTURE_STAT_COLUMNS, GAMEWEEK_COLUMNS, PLAYER_COLUMNS, TEAM_COLUMNS,
-                    add_player_team, ingest_run, report_duplicates, season_label, upsert, upsert_df)
+from ingest import (EP_SNAPSHOT_COLUMNS, EP_SNAPSHOT_KEY, FIXTURE_COLUMNS, FIXTURE_STAT_COLUMNS, GAMEWEEK_COLUMNS,
+                    NEWER_SNAPSHOT, PLAYER_COLUMNS, TEAM_COLUMNS, add_player_team, ingest_run, report_duplicates,
+                    season_label, upsert, upsert_df)
 
 # Loads the live season from the FPL API. Only gameweeks FPL marks finished AND data_checked are
 # loaded (stats can still change before that), and gameweeks already in the DB are skipped unless
 # --reload is passed. Per-fixture stats come from each player's element-summary history, which
 # has the same columns as vaastav, including that gameweek's price and ownership.
+# It also imports the ep_next snapshots the GitHub Action commits to backend/data/ep_snapshots/
+# (git pull first to get the latest ones).
 
 API = "https://fantasy.premierleague.com/api"
+SNAPSHOT_DIR = Path(__file__).resolve().parents[2] / "data" / "ep_snapshots"
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--reload", action="store_true", help="re-fetch every completed gameweek")
@@ -76,5 +81,17 @@ if todo:
     print(f"Loaded GWs {todo}: {run['rows']} player-fixture rows")
 else:
     print(f"No new completed gameweeks (loaded: {sorted(loaded) or 'none'})")
+
+# snapshots from the GitHub Action; a file only replaces a snapshot in the DB if it was taken later
+files = sorted(SNAPSHOT_DIR.glob("*/gw*.csv"))
+if files:
+    with ingest_run(conn, "ep_snapshot_csv") as run:
+        for f in files:
+            snap = pd.read_csv(f, dtype={"chance_of_playing_next_round": "Int64"})
+            run["rows"] += upsert_df(cur, "ep_snapshots", EP_SNAPSHOT_COLUMNS, snap, EP_SNAPSHOT_KEY,
+                                     NEWER_SNAPSHOT)
+            run["gameweeks"].append(int(snap["gameweek"].iloc[0]))
+        run["message"] = f"{len(files)} files; rows_written counts rows offered, older ones are skipped"
+    print(f"Imported {len(files)} ep snapshot files from {SNAPSHOT_DIR}")
 cur.close()
 conn.close()
