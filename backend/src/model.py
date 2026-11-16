@@ -9,7 +9,7 @@ import joblib
 
 INPUT_PATH = os.path.join(PROCESSED_DATA_DIR, 'ml_features_dataset.csv')
 MODEL_PATH = os.path.join(MODELS_DIR, 'rf_model.pkl')
-df = pd.read_csv(INPUT_PATH)
+df = pd.read_csv(INPUT_PATH, low_memory=False)
 
 # only use the current season so gameweek numbers are comparable
 df = df[df["season"] == df["season"].max()]

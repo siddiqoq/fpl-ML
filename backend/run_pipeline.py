@@ -2,8 +2,9 @@ import subprocess
 import sys
 
 scripts = [
-    "src/db/load_static.py",
-    "src/db/load_dynamic.py",
+    "src/db/init_db.py",       # creates tables if missing (load_history.py is a separate one-off)
+    "src/db/load_current.py",
+    "src/db/snapshot_ep.py",
     "src/fetch_data.py",
     "src/feature_engineering.py",
     "src/model.py",
