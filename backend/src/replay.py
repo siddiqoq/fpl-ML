@@ -9,7 +9,7 @@ from features import FEATURES, add_training_features
 from path import PROCESSED_DATA_DIR
 from seasons import role
 
-# Walk-forward replay (CLAUDE.md "Walk-forward evaluation"). Each season is stepped through GW by GW:
+# Walk-forward replay. Each season is stepped through GW by GW:
 # every model predicts GW t using only data from before GW t, then GW t's results are revealed to it.
 # Writes per-player predictions and a per-GW error table (the error stream the detectors will read).
 #   python src/replay.py                  -> every season

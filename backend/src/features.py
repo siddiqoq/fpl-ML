@@ -15,24 +15,53 @@ CORE_STATS = [
 XG_ERA_STATS = ["starts", "expected_goals", "expected_assists", "expected_goal_involvements",
                 "expected_goals_conceded"]
 
+# Every feature is built from CORE_STATS of the player's earlier gameweeks in the same season, including
+# price/ownership/transfers (whether vaastav records those at the deadline isn't certain, so the previous
+# GW's value is used). n_fixtures/home_fixtures describe the upcoming GW itself; they aren't features yet
+# because next_gw_features would need next GW's fixtures from the fixtures table.
+LAST_GW_STATS = ["total_points", "minutes", "now_cost", "selected", "transfers_balance"]
+LAST_3_STATS = ["total_points", "minutes", "goals_scored", "assists", "clean_sheets", "goals_conceded",
+                "saves", "bonus", "bps", "influence", "creativity", "threat"]
+SEASON_STATS = ["total_points", "minutes"]  # per-GW average over the season so far
+
+
+def _name(stat):
+    return "points" if stat == "total_points" else stat
+
+
 # Single source of truth for model inputs, shared by training, prediction and the API
-FEATURES = ["points_last_gw", "points_last_3_gws"]
+FEATURES = ([f"{_name(s)}_last_gw" for s in LAST_GW_STATS] + [f"{_name(s)}_last_3_gws" for s in LAST_3_STATS]
+            + [f"{_name(s)}_per_gw_season" for s in SEASON_STATS])
+
+
+def _build_features(df, shift):
+    # shift=1: a row's features come only from GWs before it (training/replay rows).
+    # shift=0: they include the row's own GW (the latest row, used to predict the next GW).
+    df = df.sort_values(["season", "player_id", "gameweek"]).copy()
+    keys = [df["season"], df["player_id"]]
+    stats = list(dict.fromkeys(LAST_GW_STATS + LAST_3_STATS + SEASON_STATS))
+    past = df[stats].groupby(keys).shift(shift) if shift else df[stats]
+    by_player = past.groupby(keys)
+
+    last_3 = by_player[LAST_3_STATS].rolling(3).mean().reset_index(level=[0, 1], drop=True)
+    season = by_player[SEASON_STATS].expanding().mean().reset_index(level=[0, 1], drop=True)
+    for s in LAST_GW_STATS:
+        df[f"{_name(s)}_last_gw"] = past[s]
+    for s in LAST_3_STATS:
+        df[f"{_name(s)}_last_3_gws"] = last_3[s]
+    for s in SEASON_STATS:
+        df[f"{_name(s)}_per_gw_season"] = season[s]
+    return df
 
 
 def add_training_features(df: pd.DataFrame) -> pd.DataFrame:
-    # each row only sees gameweeks strictly before it, so the target never leaks into its features
-    df = df.sort_values(["season", "player_id", "gameweek"]).copy()
-    points = df.groupby(["season", "player_id"])["total_points"]
-    df["points_last_gw"] = points.shift(1)
-    df["points_last_3_gws"] = points.transform(lambda s: s.rolling(3).mean().shift(1))
-    return df.dropna(subset=FEATURES)
+    # each row only sees gameweeks strictly before it, so the target never leaks into its features;
+    # rows without 3 earlier GWs that season are dropped
+    return _build_features(df, shift=1).dropna(subset=FEATURES)
 
 
 def next_gw_features(df: pd.DataFrame) -> pd.DataFrame:
     # one row per player in the latest season, with features that include their most recent gameweek,
     # i.e. what the model needs to predict the *upcoming* gameweek
-    latest = df[df["season"] == df["season"].max()].sort_values(["player_id", "gameweek"]).copy()
-    points = latest.groupby("player_id")["total_points"]
-    latest["points_last_gw"] = latest["total_points"]
-    latest["points_last_3_gws"] = points.transform(lambda s: s.rolling(3).mean())
+    latest = _build_features(df[df["season"] == df["season"].max()], shift=0)
     return latest.groupby("player_id").tail(1).dropna(subset=FEATURES).reset_index(drop=True)
