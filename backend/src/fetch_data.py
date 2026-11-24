@@ -30,6 +30,7 @@ df = df.merge(players, on=["season", "player_id"], how="left")
 df = df.merge(teams, on=["season", "team_id"], how="left")  # team the player played for that gameweek
 
 DATASET_PATH = os.path.join(PROCESSED_DATA_DIR, "ml_dataset.csv")
+os.makedirs(PROCESSED_DATA_DIR, exist_ok=True)
 df.to_csv(DATASET_PATH, index=False)
 print("ML dataset created:", df.shape)
 print(df.groupby("season").size().to_string())

@@ -10,3 +10,4 @@ python-dotenv
 river
 scipy
 matplotlib
+pytest
